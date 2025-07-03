@@ -1,0 +1,27 @@
+robot_config:
+  left:
+    ip: "192.168.1.18"
+    gripper: -1
+    cur_pose: null
+    cur_pos: [0, -90, 0, 0, 0, -90, 0]
+    cur_speed: [0, 0, 0, 0, 0, 0, 0]
+    init_pos: [[0, -75, 0, 0, 0, -90, 0], [0, -90, 0, 0, 0, -90, 0]]
+  right:
+    ip: "192.168.1.19"
+    gripper: -1
+    cur_pose: null
+    cur_pos: [0, 90, 0, 0, 0, 0, 0]
+    cur_speed: [0, 0, 0, 0, 0, 0, 0]
+    init_pos: [[0, 75, 0, 0, 0, 0, 0], [0, 90, 0, 0, 0, 0, 0]]
+
+feetech_config:
+  left:
+    offset: 0
+    port: "/dev/ttyUSB1"
+    init_pos: [0, -90, 0, 0, 0, -90, 0]
+    drive_modes: [-1, 1, 1, -1, 1, -1, 1]
+  right:
+    offset: 0
+    port: "/dev/ttyUSB0"
+    init_pos: [0, 90, 0, 0, 0, 0, 0]
+    drive_modes: [-1, -1, -1, -1, 1, -1, 1]
