@@ -24,6 +24,7 @@ class TestRobotArmInterface(unittest.TestCase):
         self.config = ArmConfig(
             name="test_arm",
             dof=6,
+            ip=["192.168.1.18"],
             max_joint_velocities=np.array([2.0] * 6),
             max_joint_accelerations=np.array([5.0] * 6),
             joint_limits_lower=np.array([-np.pi] * 6),
@@ -200,6 +201,7 @@ def run_integration_test():
     config = ArmConfig(
         name="integration_test",
         dof=6,
+        ip=["192.168.1.18"],
         max_joint_velocities=np.array([2.0] * 6),
         max_joint_accelerations=np.array([5.0] * 6),
         joint_limits_lower=np.array([-np.pi] * 6),

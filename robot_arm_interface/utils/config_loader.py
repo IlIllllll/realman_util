@@ -57,6 +57,7 @@ def create_arm_config(config_dict: Dict[str, Any]) -> ArmConfig:
     return ArmConfig(
         name=config_dict.get("name", "robot_arm"),
         dof=config_dict.get("dof", 6),
+        ip=config_dict.get("ip", ["192.168.1.18"]),
         max_joint_velocities=to_numpy(config_dict.get("max_joint_velocities", [1.0] * 6)),
         max_joint_accelerations=to_numpy(config_dict.get("max_joint_accelerations", [1.0] * 6)),
         joint_limits_lower=to_numpy(config_dict.get("joint_limits_lower", [-np.pi] * 6)),
