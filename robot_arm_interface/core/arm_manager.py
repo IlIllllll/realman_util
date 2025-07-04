@@ -153,7 +153,7 @@ class RobotArmManager:
                 return False
             
             # Send shutdown command
-            self._command_queue.put(Command(CommandType.SHUTDOWN))
+            self._command_queue.put(Command(CommandType.STOP))
             
             # Wait for thread to stop
             if self._control_thread:
@@ -254,18 +254,7 @@ class RobotArmManager:
         
         return self._send_command(Command(CommandType.MOVE_CARTESIAN, data, timeout=timeout))
     
-    def stop(self, timeout: float = 1.0) -> bool:
-        """
-        Stop the robot arm.
-        
-        Args:
-            timeout: Command timeout
-            
-        Returns:
-            True if command accepted
-        """
-        return self._send_command(Command(CommandType.STOP, timeout=timeout))
-    
+
     def get_state(self) -> Optional[ArmState]:
         """
         Get current robot arm state.
@@ -323,7 +312,6 @@ class RobotArmManager:
     def _control_loop(self):
         """Main control loop running in separate thread."""
         self._logger.info("Control loop started")
-        last_loop_time = time.time()
         
         try:
             while self._thread_running:
@@ -343,6 +331,8 @@ class RobotArmManager:
                     self._logger.warning(f"Control loop took {elapsed:.3f}s, target is {self._control_period:.3f}s")
                 
                 self._control_loop_count += 1
+
+            self._logger.info("Control loop stopped")
                 
         except Exception as e:
             self._logger.error(f"Control loop error: {e}", exc_info=True)
@@ -361,7 +351,7 @@ class RobotArmManager:
         
         try:
             # Get command with short timeout
-            command = self._command_queue.get(timeout=0.001)
+            command = self._command_queue.get(timeout=0.01)
             
             # Check command timeout
             if current_time - command.timestamp > command.timeout:
@@ -372,8 +362,10 @@ class RobotArmManager:
             
             # Process command
             success = False
+
+            self._logger.info(f"Processing command: {command.type}")
             
-            if command.type == CommandType.SHUTDOWN:
+            if command.type == CommandType.STOP:
                 self._thread_running = False
                 return
             
@@ -382,9 +374,6 @@ class RobotArmManager:
                 
             elif command.type == CommandType.DISABLE:
                 success = self._arm.disable()
-                
-            elif command.type == CommandType.STOP:
-                success = self._arm.stop()
                 
             elif command.type == CommandType.MOVE_JOINTS:
                 data = command.data

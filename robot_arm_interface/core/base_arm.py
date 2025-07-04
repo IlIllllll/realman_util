@@ -40,6 +40,7 @@ class ArmConfig:
     """Robot arm configuration."""
     name: str  # Arm name/identifier
     dof: int  # Degrees of freedom
+    ip: List[str]  # IP address ， 字符串数组， 用于多机械臂
     max_joint_velocities: np.ndarray  # Maximum joint velocities (rad/s)
     max_joint_accelerations: np.ndarray  # Maximum joint accelerations (rad/s^2)
     joint_limits_lower: np.ndarray  # Lower joint limits (rad)
