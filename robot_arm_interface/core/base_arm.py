@@ -153,19 +153,6 @@ class BaseRobotArm(ABC):
         pass
     
     @abstractmethod
-    def move_joints_velocity(self, joint_velocities: np.ndarray) -> bool:
-        """
-        Move joints with specified velocities.
-        
-        Args:
-            joint_velocities: Target joint velocities in rad/s
-            
-        Returns:
-            True if command sent successfully, False otherwise
-        """
-        pass
-    
-    @abstractmethod
     def move_cartesian(self, pose: np.ndarray,
                       velocity_limit: Optional[float] = None,
                       acceleration_limit: Optional[float] = None) -> bool:

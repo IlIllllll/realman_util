@@ -153,19 +153,6 @@ class SimulationRobotArm(BaseRobotArm):
         self._logger.info(f"Starting movement to {joint_positions}, duration: {self._movement_duration:.2f}s")
         return True
     
-    def move_joints_velocity(self, joint_velocities: np.ndarray) -> bool:
-        """Move joints with specified velocities."""
-        if not self._is_enabled:
-            self._logger.error("Arm not enabled")
-            return False
-        
-        # In simulation, we update velocities directly
-        with self._update_lock:
-            self._current_velocities = joint_velocities.copy()
-            self._is_moving = np.any(joint_velocities != 0)
-        
-        return True
-    
     def move_cartesian(self, pose: np.ndarray,
                       velocity_limit: Optional[float] = None,
                       acceleration_limit: Optional[float] = None) -> bool:

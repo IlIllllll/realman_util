@@ -17,7 +17,6 @@ from .base_arm import BaseRobotArm, ArmState, ArmConfig
 class CommandType(Enum):
     """Command types for the control thread."""
     MOVE_JOINTS = auto()
-    MOVE_JOINTS_VELOCITY = auto()
     MOVE_CARTESIAN = auto()
     STOP = auto()
     ENABLE = auto()
@@ -208,28 +207,6 @@ class RobotArmManager:
         
         return self._send_command(Command(CommandType.MOVE_JOINTS, data, timeout=timeout))
     
-    def move_joints_velocity(self, joint_velocities: np.ndarray,
-                            timeout: float = 0.1) -> bool:
-        """
-        Move joints with specified velocities.
-        
-        Args:
-            joint_velocities: Target joint velocities
-            timeout: Command timeout (short for velocity control)
-            
-        Returns:
-            True if command accepted
-        """
-        # Validate velocities
-        is_valid, error = self._arm.validate_joint_velocities(joint_velocities)
-        if not is_valid:
-            self._logger.error(f"Invalid joint velocities: {error}")
-            return False
-        
-        data = {"velocities": joint_velocities.copy()}
-        
-        return self._send_command(Command(CommandType.MOVE_JOINTS_VELOCITY, data, timeout=timeout))
-    
     def move_cartesian(self, pose: np.ndarray,
                       velocity_limit: Optional[float] = None,
                       acceleration_limit: Optional[float] = None,
@@ -382,9 +359,6 @@ class RobotArmManager:
                     data.get("velocity_limit"),
                     data.get("acceleration_limit")
                 )
-                
-            elif command.type == CommandType.MOVE_JOINTS_VELOCITY:
-                success = self._arm.move_joints_velocity(command.data["velocities"])
                 
             elif command.type == CommandType.MOVE_CARTESIAN:
                 data = command.data
