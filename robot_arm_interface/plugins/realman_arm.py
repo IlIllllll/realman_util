@@ -13,8 +13,6 @@ from scipy.spatial.transform import Rotation as R
 
 # Add parent directory to path to import realman modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from robot_arm_interface.core.base_arm import BaseRobotArm, ArmState, ArmConfig
 from robot_arm_interface.core.arm_factory import register_robot_arm
 
 try:
@@ -22,6 +20,17 @@ try:
 except ImportError:
     logging.warning("Realman arm modules not found. Realman plugin will not be available.")
     Arm = None
+
+# rm_robot_interface 中有定义ArmState 需要覆盖，不能放到rm_robot_interface的引入前
+from robot_arm_interface.core.base_arm import BaseRobotArm, ArmState, ArmConfig
+
+single_rm_config = {
+    "ip" : "192.168.1.18",
+    "gripper": 0,
+    "cur_pose": None,
+    "cur_pos": [0, 90, 0, 0, 0, 0, 0],
+    "cur_speed": [0, 0, 0, 0, 0, 0, 0]
+}
 
 def rpy_to_rotation_vector(rpy):
     roll, pitch, yaw = rpy[0], rpy[1], rpy[2]
@@ -61,36 +70,17 @@ class RealmanRobotArm(BaseRobotArm):
     def __init__(self, config: ArmConfig):
         """Initialize Realman robot arm."""
         super().__init__(config)
+        
+        # 初始化logger
+        self._logger = logging.getLogger(f"RealmanArm[{config.name}]")
 
         self.rm_arm_num = config.dof // 7    # 单臂7个自由度
         self.robot_list = []
         self.robot_config_list = []
         self.gripper_control_thread_list = []
         self.dh_list = []
-        single_rm_config = {
-            "ip" : "192.168.1.18",
-            "gripper": 0,
-            "cur_pose": None,
-            "cur_pos": [0, 90, 0, 0, 0, 0, 0],
-            "cur_speed": [0, 0, 0, 0, 0, 0, 0]
-        }
         
-        # 只有第一个机械臂需要mode_e ，其他机械臂使用默认模式，将机械臂放置在一个队列中
-        for i in range(self.rm_arm_num):
-            self.robot_list.append(RoboticArm(rm_thread_mode_e.RM_TRIPLE_MODE_E) if i == 0 else RoboticArm())
-            current_config = single_rm_config.copy()
-            current_config["ip"] = config.ip[i]
-            self.robot_list[i].rm_create_robot_arm(current_config["ip"], port=8080, level=3)
-            self.robot_config_list.append(current_config)
-            self.gripper_control_thread_list.append(None)
-            [ret, dh] = self.robot_list[i].rm_get_DH_data()
-            if ret != 0:
-                self._logger.error(f"Get DH data failed: {ret}")
-                return np.zeros(6)
-            self.dh_list.append(dh)
         self.arm_state_callback = rm_realtime_arm_state_callback_ptr(self.arm_state_func)
-
-        self._logger = logging.getLogger(f"RealmanArm[{config.name}]")
 
         self.arm_model = rm_robot_arm_model_e.RM_MODEL_RM_65_E  # RM_65机械臂
         self.force_type = rm_force_type_e.RM_MODEL_RM_B_E  # 标准版
@@ -128,8 +118,29 @@ class RealmanRobotArm(BaseRobotArm):
         """Connect to Realman arm."""
         try:
             self._logger.info(f"Connecting to Realman arm")
+
+            # 只有第一个机械臂需要mode_e ，其他机械臂使用默认模式，将机械臂放置在一个队列中
+            for i in range(self.rm_arm_num):
+                self.robot_list.append(RoboticArm(rm_thread_mode_e.RM_TRIPLE_MODE_E) if i == 0 else RoboticArm())
+                current_config = single_rm_config.copy()
+                current_config["ip"] = self._config.ip[i]
+                ret = self.robot_list[i].rm_create_robot_arm(current_config["ip"], port=8080, level=3)
+                if ret.id == -1:
+                    self._logger.error(f"Failed to create robot arm {i}, ip: {current_config['ip']}, ret: {ret}")
+                    raise Exception(f"Failed to create robot arm {i}")
+                self.robot_config_list.append(current_config)
+                self.gripper_control_thread_list.append(None)
+                [ret, dh] = self.robot_list[i].rm_get_DH_data()
+                if ret != 0:
+                    self._logger.error(f"Get DH data failed for arm {i}: {ret}")
+                    raise Exception(f"Get DH data failed for arm {i}")
+                self.dh_list.append(dh)
+                
+            # 设置UDP监听
             self.udp_watch()
+            
             self._is_connected = True
+            self._logger.info("Successfully connected to Realman arm")
             return True
                 
         except Exception as e:
@@ -159,6 +170,7 @@ class RealmanRobotArm(BaseRobotArm):
         """Enable the robot arm."""
         try:
             if not self._is_connected:
+                self._logger.error("Arm not connected")
                 return False
             
             self._is_enabled = True
@@ -174,6 +186,7 @@ class RealmanRobotArm(BaseRobotArm):
         """Disable the robot arm."""
         try:
             if not self._is_connected:
+                self._logger.error("Arm not connected")
                 return False
             
             self._is_enabled = False
@@ -194,19 +207,19 @@ class RealmanRobotArm(BaseRobotArm):
             joint_positions = np.zeros(self._config.dof)
             joint_velocities = np.zeros(self._config.dof)
             for i in range(self.rm_arm_num):
-                joint_positions[i*7:(i+1)*7] = self.robot_config_list[i]["cur_pos"]
-                joint_velocities[i*7:(i+1)*7] = self.robot_config_list[i]["cur_speed"]
-            joint_positions = np.deg2rad(joint_positions)
-            joint_velocities = np.deg2rad(joint_velocities)
+                joint_positions[i*7:(i+1)*7] = self.robot_config_list[i]["cur_pos"]+[self.robot_config_list[i]["gripper"]]
+                joint_velocities[i*7:(i+1)*7] = self.robot_config_list[i]["cur_speed"]+[0]
+            joint_positions = joint_positions
+            joint_velocities = joint_velocities
             
             # Get joint torques (Realman doesn't provide this directly)
             joint_torques = np.zeros(self._config.dof)
             
             # Get end effector pose
-            end_effector_pose = np.zeros(self.rm_arm_num * 6)
+            end_effector_pose = np.zeros(self.rm_arm_num * 7)
             for i in range(self.rm_arm_num):
-                end_effector_pose[i*6:(i+1)*6] = self.robot_config_list[i]["cur_pose"]
-            end_effector_pose = np.deg2rad(end_effector_pose)
+                end_effector_pose[i*7:(i+1)*7] = self.robot_config_list[i]["cur_pose"]+[self.robot_config_list[i]["gripper"]]
+            end_effector_pose = end_effector_pose
             
             # Check if moving
             is_moving = False
@@ -237,7 +250,7 @@ class RealmanRobotArm(BaseRobotArm):
                 joint_positions=np.zeros(self._config.dof),
                 joint_velocities=np.zeros(self._config.dof),
                 joint_torques=np.zeros(self._config.dof),
-                end_effector_pose=np.zeros(6),
+                end_effector_pose=np.zeros(self._config.dof),
                 timestamp=time.time(),
                 is_moving=False,
                 has_error=True,
@@ -257,7 +270,7 @@ class RealmanRobotArm(BaseRobotArm):
             for i in range(self.rm_arm_num):
                 joint = joint_positions[i*7:(i+1)*7-1]
                 gripper = joint_positions[(i+1)*7-1]
-                self.robot_list[i].rm_movej_canfd(joint, follow=True, expand=0, trajectory_mode=2, radio=920)
+                self.robot_list[i].rm_movej_canfd(joint, follow=True, expand=0, trajectory_mode=2, radio=90)
                 if gripper == 1 and self.robot_config_list[i]["gripper"] != 1:
                     self.robot_config_list[i]["gripper"] = 1
                     self.gripper_control_thread_list[i] = GripperControlThread(self.robot_list[i], 1, 1000, 1000)
@@ -291,7 +304,7 @@ class RealmanRobotArm(BaseRobotArm):
                 arm_pose = np.concatenate((xyz, rpy))
 
                 #逆运动学参数结构体
-                params = rm_inverse_kinematics_params_t(self.shared[self.hand_type]["cur_pos"], arm_pose, 1)
+                params = rm_inverse_kinematics_params_t(self.robot_config_list[i]["cur_pos"], arm_pose, 1)
 
                 # 计算逆运动学全解(当前仅支持六自由度机器人)
                 result = self.algo_handle.rm_algo_inverse_kinematics_all(params)
@@ -312,6 +325,8 @@ class RealmanRobotArm(BaseRobotArm):
                     self.gripper_control_thread_list[i] = GripperControlThread(self.robot_list[i], 0, 1000, 1000)
                     self.gripper_control_thread_list[i].start()
             
+            return True
+            
         except Exception as e:
             self._logger.error(f"Move cartesian failed: {e}")
             self.error_code = 7
@@ -323,7 +338,8 @@ class RealmanRobotArm(BaseRobotArm):
             if not self._is_connected:
                 return False
             
-            self._arm.set_arm_stop()
+            for i in range(self.rm_arm_num):
+                self.robot_list[i].rm_set_arm_stop()
             self._logger.info("Arm stopped")
             return True
             
@@ -342,8 +358,7 @@ class RealmanRobotArm(BaseRobotArm):
                 
                 # 使用库函数计算正向运动学
                 target_joint_positions = joint_positions[i*7:(i+1)*7-1]
-                pose_library[i*7:(i+1)*7-1] = self.algo_handle.rm_algo_forward_kinematics(target_joint_positions, flag=1)
-                pose_library[(i+1)*7-1] = joint_positions[(i+1)*7-1]
+                pose_library[i*7:(i+1)*7] = self.algo_handle.rm_algo_forward_kinematics(target_joint_positions, flag=1)
             return pose_library
         except Exception as e:
             self._logger.error(f"Forward kinematics failed: {e}")
@@ -356,11 +371,11 @@ class RealmanRobotArm(BaseRobotArm):
         try:
             joint_positions = np.zeros(self.rm_arm_num * 7)
             for i in range(self.rm_arm_num):
-                pose_gripper = pose[i*6:(i+1)*6]
+                pose_gripper = pose[i*7:(i+1)*7]
                 xyz = pose_gripper[:3]
                 rpy = pose_gripper[3:6]
                 arm_pose = np.concatenate((xyz, rpy))
-                gripper = pose[i*7:(i+1)*7]
+                gripper = pose_gripper[6]
 
                 # 逆运动学参数结构体
                 params = rm_inverse_kinematics_params_t(self.robot_config_list[i]["cur_pos"], arm_pose, 1)
