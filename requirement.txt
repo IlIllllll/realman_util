@@ -1,0 +1,6 @@
+pytorch
+PyYAML
+scipy
+cd packages/openpi-client && pip install -e .
+cd lerobot && pip install -e .
+
