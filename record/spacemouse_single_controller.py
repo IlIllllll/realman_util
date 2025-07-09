@@ -8,6 +8,7 @@ import scipy.spatial.transform as st
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from pathlib import Path
 import shutil
+import cv2
 
 import select
 import tty
@@ -19,6 +20,8 @@ sys.path.insert(0, project_root)
 import pyspacemouse
 from camera.camera_thread import RealsenseCamera
 from realman_arm.realman_utils import Realman
+
+LEROBOT_HOME = Path(os.getenv("LEROBOT_HOME", "/home/ls/lerobot_dataset")).expanduser()
 
 send_pose = None
 dpos = None
@@ -74,7 +77,6 @@ def spacemouse_thread_func(realman, tx_zup_spnav, motion_event, button_state):
 
 if __name__ == "__main__":
     # 初始化LeRobot数据集
-    LEROBOT_HOME = Path(os.getenv("LEROBOT_HOME", "/home/ls/lerobot_dataset")).expanduser()
     REPO_NAME = "single_arm/test_dp"
     output_path = LEROBOT_HOME / REPO_NAME
     if output_path.exists():
@@ -110,8 +112,8 @@ if __name__ == "__main__":
                 "names": ["joint"],
             },
         },
-        image_writer_threads=10,
-        image_writer_processes=5,
+        image_writer_threads=4,
+        image_writer_processes=4,
     )
     # 初始化相机
     camera = RealsenseCamera()
@@ -143,16 +145,15 @@ if __name__ == "__main__":
             # 检查键盘输入
             if select.select([sys.stdin], [], [], 0)[0]:
                 key = sys.stdin.read(1)
-                if key.lower() == 'c':
+                if key.lower() == 'c' and not recording:
                     print("开始录制...")
                     recording = True
                 if key.lower() == 'q':
                     print("退出...")
                     break
-                elif key.lower() == 's':
+                elif key.lower() == 's' and recording:
                     print("停止录制，等待下一次开始...")
-                    if recording:
-                        dataset.save_episode(task="pick up the blue cube", encode_videos=True)
+                    dataset.save_episode(task="pick up the blue cube", encode_videos=True)
                     recording = False
             if recording:
                 with pose_lock:
@@ -163,6 +164,13 @@ if __name__ == "__main__":
                 frames = camera.get_frame()
                 top_image = frames.get("top", None)
                 wrist_image = frames.get("right", None)
+                
+                # # 打印图像数据类型信息
+                # if top_image is not None:
+                #     print(f"top_image dtype: {top_image.dtype}, shape: {top_image.shape}, min: {top_image.min()}, max: {top_image.max()}")
+                # if wrist_image is not None:
+                #     print(f"wrist_image dtype: {wrist_image.dtype}, shape: {wrist_image.shape}, min: {wrist_image.min()}, max: {wrist_image.max()}")
+                
                 if top_image is not None and wrist_image is not None:
                     dataset.add_frame({
                         "top_image": top_image,
