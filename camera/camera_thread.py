@@ -35,6 +35,8 @@ class RealsenseCamera:
                 color_frame = frames.get_color_frame()
                 if color_frame:
                     color_image = np.asanyarray(color_frame.get_data())
+                    # 红蓝通道交换
+                    color_image = color_image[:, :, ::-1]
                     with self.lock:
                         self.frames[name] = color_image
             except Exception as e:

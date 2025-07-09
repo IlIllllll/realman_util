@@ -1,6 +1,10 @@
 pytorch
 PyYAML
 scipy
+sudo apt insatll ffmpeg
+pyspacemouse
+opencv-python
+pyrealsense2
 cd packages/openpi-client && pip install -e .
 cd lerobot && pip install -e .
 pip install av
