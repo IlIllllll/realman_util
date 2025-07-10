@@ -80,41 +80,42 @@ if __name__ == "__main__":
     REPO_NAME = "single_arm/test_dp"
     output_path = LEROBOT_HOME / REPO_NAME
     if output_path.exists():
-        shutil.rmtree(output_path)
-    dataset = LeRobotDataset.create(
-        repo_id=REPO_NAME,
-        robot_type="panda",
-        fps=10,
-        features={
-            "top_image": {
-                "dtype": "video",
-                "shape": (480, 640, 3),
-                "names": ["height", "width", "channel"],
+        dataset = LeRobotDataset( root=REPO_NAME,local_files_only=True)
+    else:
+        dataset = LeRobotDataset.create(
+            repo_id=REPO_NAME,
+            robot_type="panda",
+            fps=10,
+            features={
+                "top_image": {
+                    "dtype": "video",
+                    "shape": (480, 640, 3),
+                    "names": ["height", "width", "channel"],
+                },
+                "wrist_image": {
+                    "dtype": "video",
+                    "shape": (480, 640, 3),
+                    "names": ["height", "width", "channel"],
+                },
+                "state": {
+                    "dtype": "float32",
+                    "shape": (7,),
+                    "names": ["state"],
+                },
+                "actions": {
+                    "dtype": "float32",
+                    "shape": (7,),
+                    "names": ["actions"],
+                },
+                "joint": {
+                    "dtype": "float32",
+                    "shape": (7,),
+                    "names": ["joint"],
+                },
             },
-            "wrist_image": {
-                "dtype": "video",
-                "shape": (480, 640, 3),
-                "names": ["height", "width", "channel"],
-            },
-            "state": {
-                "dtype": "float32",
-                "shape": (7,),
-                "names": ["state"],
-            },
-            "actions": {
-                "dtype": "float32",
-                "shape": (7,),
-                "names": ["actions"],
-            },
-            "joint": {
-                "dtype": "float32",
-                "shape": (7,),
-                "names": ["joint"],
-            },
-        },
-        image_writer_threads=4,
-        image_writer_processes=4,
-    )
+            image_writer_threads=4,
+            image_writer_processes=4,
+        )
     # 初始化相机
     camera = RealsenseCamera()
     camera.start()

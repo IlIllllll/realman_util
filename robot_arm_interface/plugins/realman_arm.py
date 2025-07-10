@@ -28,8 +28,8 @@ single_rm_config = {
     "ip" : "192.168.1.18",
     "gripper": 0,
     "cur_pose": None,
-    "cur_pos": [0, 90, 0, 0, 0, 0, 0],
-    "cur_speed": [0, 0, 0, 0, 0, 0, 0]
+    "cur_pos": [0, 90, 0, 0, 0, 0],
+    "cur_speed": [0, 0, 0, 0, 0, 0]
 }
 
 def rpy_to_rotation_vector(rpy):
@@ -141,6 +141,11 @@ class RealmanRobotArm(BaseRobotArm):
             
             self._is_connected = True
             self._logger.info("Successfully connected to Realman arm")
+
+            for i in range(self.rm_arm_num):
+                self.robot_list[i].rm_set_gripper_release(1000, False, 0)
+                self.robot_config_list[i]["gripper"] = 0
+            print("夹爪张开")
             return True
                 
         except Exception as e:
