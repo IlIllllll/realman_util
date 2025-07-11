@@ -1,10 +1,12 @@
-pytorch
-PyYAML
-scipy
+pip install pytorch
+pip install PyYAML
+pip install scipy
 sudo apt insatll ffmpeg
-pyspacemouse
-opencv-python
-pyrealsense2
+pip install pyspacemouse
+pip install opencv-python
+pip install pyrealsense2
 cd packages/openpi-client && pip install -e .
 cd lerobot && pip install -e .
 pip install av
+pip install opuslib
+pip install sounddevice

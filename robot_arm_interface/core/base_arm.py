@@ -138,7 +138,8 @@ class BaseRobotArm(ABC):
     @abstractmethod
     def move_joints(self, joint_positions: np.ndarray, 
                    velocity_limit: Optional[float] = None,
-                   acceleration_limit: Optional[float] = None) -> bool:
+                   acceleration_limit: Optional[float] = None,
+                   follow: bool = True) -> bool:
         """
         Move to target joint positions.
         
@@ -146,7 +147,7 @@ class BaseRobotArm(ABC):
             joint_positions: Target joint positions in radians
             velocity_limit: Optional velocity limit (0-1, fraction of max velocity)
             acceleration_limit: Optional acceleration limit (0-1, fraction of max acceleration)
-            
+            follow: Whether to follow the target joint positions
         Returns:
             True if command sent successfully, False otherwise
         """
@@ -155,7 +156,8 @@ class BaseRobotArm(ABC):
     @abstractmethod
     def move_cartesian(self, pose: np.ndarray,
                       velocity_limit: Optional[float] = None,
-                      acceleration_limit: Optional[float] = None) -> bool:
+                      acceleration_limit: Optional[float] = None,
+                      follow: bool = True) -> bool:
         """
         Move to target Cartesian pose.
         

@@ -10,6 +10,11 @@ import argparse
 processes = {}
 
 def start_service(name, mode, ip):
+    # 先停止同名服务（如果存在）
+    if name in processes:
+        stop_service(name)
+        time.sleep(1)  # 等待进程完全退出
+    
     print(f"[Monitor] Starting {name} service with mode '{mode}' and ip {ip}...")
     p = subprocess.Popen(["python3", "vrServer/udp.py", "--mode", mode, "--ip", ip])
     processes[name] = p
@@ -38,7 +43,7 @@ def heartbeat_listener(ip, modes, port=5008, timeout=5):
                     for mode in modes:
                         start_service(mode, mode, ip)
                 last_heartbeat = time.time()
-                print(f"[Monitor] ❤️ Heartbeat received from {addr}")
+                # print(f"[Monitor] ❤️ Heartbeat received from {addr}")
         except socket.timeout:
             pass
 

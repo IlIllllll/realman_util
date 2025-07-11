@@ -109,7 +109,7 @@ class RealmanRobotArm(BaseRobotArm):
         custom.lift_state = 0
         custom.expand_state = 0
         custom.arm_current_status = 1
-        config = rm_realtime_push_config_t(2, True, 8089, 0, "192.168.1.100", custom)
+        config = rm_realtime_push_config_t(1, True, 8089, 0, "192.168.1.100", custom)
         self.robot_list[0].rm_set_realtime_push(config)
         self.robot_list[0].rm_get_realtime_push()
         self.robot_list[0].rm_realtime_arm_state_call_back(self.arm_state_callback)
@@ -264,7 +264,8 @@ class RealmanRobotArm(BaseRobotArm):
     
     def move_joints(self, joint_positions: np.ndarray,
                    velocity_limit: Optional[float] = None,
-                   acceleration_limit: Optional[float] = None) -> bool:
+                   acceleration_limit: Optional[float] = None,
+                   follow: bool = True) -> bool:
         """Move to target joint positions."""
         try:
             if not self._is_enabled:
@@ -275,7 +276,7 @@ class RealmanRobotArm(BaseRobotArm):
             for i in range(self.rm_arm_num):
                 joint = joint_positions[i*7:(i+1)*7-1]
                 gripper = joint_positions[(i+1)*7-1]
-                self.robot_list[i].rm_movej_canfd(joint, follow=True, expand=0, trajectory_mode=2, radio=90)
+                self.robot_list[i].rm_movej_canfd(joint, follow=follow, expand=0, trajectory_mode=2, radio=90)
                 if gripper == 1 and self.robot_config_list[i]["gripper"] != 1:
                     self.robot_config_list[i]["gripper"] = 1
                     self.gripper_control_thread_list[i] = GripperControlThread(self.robot_list[i], 1, 1000, 1000)
@@ -293,7 +294,8 @@ class RealmanRobotArm(BaseRobotArm):
     
     def move_cartesian(self, pose: np.ndarray,
                       velocity_limit: Optional[float] = None,
-                      acceleration_limit: Optional[float] = None) -> bool:
+                      acceleration_limit: Optional[float] = None,
+                      follow: bool = True) -> bool:
         """Move to target Cartesian pose."""
         try:
             if not self._is_enabled:
@@ -317,7 +319,7 @@ class RealmanRobotArm(BaseRobotArm):
                 # 从多解中选取最优解(当前仅支持六自由度机器人)
                 ret = self.algo_handle.rm_algo_ikine_select_ik_solve([1.0, 1.0, 1.0, 1.0, 1.0, 1.0], result)
                 if ret != -1:
-                    self.robot_list[i].rm_movej_canfd(joint= list(result.q_solve[ret])[:6], follow=True, expand=0, trajectory_mode=2, radio=90)
+                    self.robot_list[i].rm_movej_canfd(joint= list(result.q_solve[ret])[:6], follow=True, expand=0, trajectory_mode=2, radio=20)
                 else: 
                     print("no best solution!")
 
@@ -371,10 +373,18 @@ class RealmanRobotArm(BaseRobotArm):
             return np.zeros(self.rm_arm_num * 7)
     
     def get_inverse_kinematics(self, pose: np.ndarray,
-                              current_joints: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-        """Calculate inverse kinematics."""
+                              current_joints: Optional[np.ndarray] = None) -> tuple[Optional[np.ndarray], bool]:
+        """Calculate inverse kinematics.
+        
+        Returns:
+            tuple: (joint_positions, has_optimal_solution)
+                - joint_positions: 关节角度数组，如果计算失败返回None
+                - has_optimal_solution: 是否有最优解的标志
+        """
         try:
             joint_positions = np.zeros(self.rm_arm_num * 7)
+            has_optimal_solution = True
+            
             for i in range(self.rm_arm_num):
                 pose_gripper = pose[i*7:(i+1)*7]
                 xyz = pose_gripper[:3]
@@ -387,11 +397,17 @@ class RealmanRobotArm(BaseRobotArm):
 
                 # 计算逆运动学全解(当前仅支持六自由度机器人)
                 result = self.algo_handle.rm_algo_inverse_kinematics_all(params)
-                joint_positions[i*7:(i+1)*7-1] = result.q_solve[0]
+                ret = self.algo_handle.rm_algo_ikine_select_ik_solve([1.0, 1.0, 1.0, 1.0, 1.0, 1.0], result)
+                if ret != -1:
+                    joint_positions[i*7:(i+1)*7-1] = result.q_solve[ret][:6]
+                else:
+                    print(f"no best solution for arm {i}!")
+                    joint_positions[i*7:(i+1)*7-1] = result.q_solve[0]
+                    has_optimal_solution = False
                 joint_positions[(i+1)*7-1] = gripper
-            return joint_positions
+            return joint_positions, has_optimal_solution
                 
         except Exception as e:
             self._logger.error(f"Inverse kinematics failed: {e}")
             self.error_code = 10
-            return None
+            return None, False
