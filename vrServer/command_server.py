@@ -5,6 +5,7 @@ import subprocess
 import numpy as np
 import sys
 import os
+import threading
 
 # 添加项目根目录到路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,11 +13,13 @@ sys.path.insert(0, project_root)
 
 from robot_arm_interface import ArmConfig
 from robot_controller import RobotArmController, set_scale_parameters
+from data_recorder import DataRecorder
+from camera.camera_thread import RealsenseCamera
 
 # 全局变量
 robot_controller = None
 
-def command_server_thread(ip="0.0.0.0", port=5005):
+def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
     """
     控制命令服务器线程
     
@@ -72,6 +75,13 @@ def command_server_thread(ip="0.0.0.0", port=5005):
     robot_controller = RobotArmController(arm_config, filter_config)
     robot_controller.start()
     
+    # 初始化相机
+    camera = RealsenseCamera()
+    camera.start()
+
+    # 创建数据采集器
+    data_recorder = DataRecorder(robot_controller, camera, repo_id)
+    
     try:
         while True:
             data, addr = sock.recvfrom(65535)
@@ -99,9 +109,23 @@ def command_server_thread(ip="0.0.0.0", port=5005):
                     print(f"[{addr}] {msg}")
 
                 elif cmd == "start_record":
-                    print(f"[{addr}] start_record")
+                    # 启动数据录制线程
+                    try:
+                        data_recorder.start_record()
+                        sock.sendto("start_record success".encode("utf-8"), addr)
+                        print(f"[{addr}] start_record")
+                    except Exception as e:
+                        print(f"[DataRecorder] 启动录制失败: {e}")
+                        sock.sendto(f"start_record failed: {e}".encode("utf-8"), addr)
                 elif cmd == "stop_record":
-                    print(f"[{addr}] stop_record")
+                    # 停止数据录制并保存
+                    try:
+                        data_recorder.stop_record()
+                        sock.sendto("stop_record success".encode("utf-8"), addr)
+                        print(f"[{addr}] stop_record")
+                    except Exception as e:
+                        print(f"[DataRecorder] 停止录制失败: {e}")
+                        sock.sendto(f"stop_record failed: {e}".encode("utf-8"), addr)
                 elif cmd == "filter_stats":
                     # 获取滤波器统计信息
                     stats = robot_controller.get_filter_stats()
@@ -167,4 +191,12 @@ def command_server_thread(ip="0.0.0.0", port=5005):
         # 清理资源
         if robot_controller:
             robot_controller.stop()
+        if camera:
+            camera.stop()
+        # 停止数据录制线程（如果还在录制）
+        try:
+            if data_recorder and data_recorder.is_recording():
+                data_recorder.stop_record()
+        except Exception as e:
+            print(f"[DataRecorder] 关闭录制线程异常: {e}")
         sock.close() 

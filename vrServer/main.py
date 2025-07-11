@@ -12,7 +12,6 @@ import time
 
 # 导入各个模块
 from config import get_device_serials, AUDIO_PORT, VIDEO_PORT, CONTROL_PORT
-from video_streamer import video_stream_thread
 from audio_streamer import AudioStreamer
 from command_server import command_server_thread
 
@@ -55,22 +54,28 @@ def main():
     
     parser.add_argument("--ip", type=str, default="17.16.2.88",
                     help="用于选择摄像头序列号配置，例如 '17.16.2.88' 或 '17.16.2.206'")
+    parser.add_argument("--repo_id", type=str, default="dual_arm/test_dp",
+                        help="LeRobot数据集 repo_id")
     args = parser.parse_args()
-    print(f"运行模式: {args.mode}, 使用摄像头配置IP: {args.ip}")
+    print(f"运行模式: {args.mode}, 使用摄像头配置IP: {args.ip}, 数据集repo_id: {args.repo_id}")
 
     # 根据IP获取设备序列号配置
     ip_suffix = args.ip.split('.')[-1]
     device_serials = get_device_serials(ip_suffix)
     
+    global robot_controller, audio_streamer
     try:
-        if "video" in args.mode:
-            t1 = threading.Thread(target=video_stream_thread, kwargs={"device_serials": device_serials})
-            t1.daemon = True
-            t1.start()
-            threads.append(t1)
+        # if "video" in args.mode:
+        #     from video_streamer import video_stream_thread
+        #     t1 = threading.Thread(target=video_stream_thread, kwargs={"device_serials": device_serials})
+        #     t1.daemon = True
+        #     t1.start()
+        #     threads.append(t1)
 
         if "command" in args.mode:
-            t2 = threading.Thread(target=command_server_thread)
+            t2 = threading.Thread(target=command_server_thread, kwargs={
+                "repo_id": args.repo_id
+            })
             t2.daemon = True
             t2.start()
             threads.append(t2)
