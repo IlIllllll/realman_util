@@ -86,16 +86,12 @@ class RobotArmController:
     def calculate_joint_interpolation_points(self, start_joints, end_joints, hand_type):
         """计算关节角插值点"""
         # 计算关节角度差
-        print(f"[RobotArm] start_joints: {start_joints}")
-        print(f"[RobotArm] end_joints: {end_joints}")
         joint_diff = np.abs(end_joints - start_joints)
         max_joint_diff = np.max(joint_diff)
         
         # 基于最大关节角度差计算时间
-        max_joint_velocity = 50
+        max_joint_velocity = 60
         total_time = max(max_joint_diff / max_joint_velocity, 0.01)  # 最小0.1秒
-
-        print(f"[RobotArm] max_joint_diff: {max_joint_diff}")
         
         # 计算插值点数
         num_steps = int(total_time / self.interpolation_step)
@@ -198,14 +194,11 @@ class RobotArmController:
             if right_new_pose is not None:
                 self.last_pose["right"] = right_new_pose.copy()
                 self.last_joints["right"] = joint_positions[7:].copy()
-            
-        # 打印更新信息
-        if left_new_pose is not None and right_new_pose is not None:
-            print(f"[RobotArm] Updated both arms: left={left_new_pose[:3]}, right={right_new_pose[:3]}")
-        elif left_new_pose is not None:
-            print(f"[RobotArm] Updated left arm: {left_new_pose[:3]}")
-        elif right_new_pose is not None:
-            print(f"[RobotArm] Updated right arm: {right_new_pose[:3]}")
+
+    def move_to_joints(self, joints):
+        """移动到指定关节角"""
+        self.robot_arm.move_joints(joints, follow=False)
+        self.current_joints = joints
     
     def control_loop(self):
         """控制循环，以100Hz运行"""
@@ -222,7 +215,6 @@ class RobotArmController:
                     try:
                         self.robot_arm.move_joints(target_joints, follow=False)
                         self.current_joints = target_joints
-                        print(f"[RobotArm] Move joints: {target_joints}")
                     except Exception as e:
                         print(f"[RobotArm] Move error: {e}")
             
@@ -270,6 +262,7 @@ class RobotArmController:
             print(f"[RobotArm] Updated right hand filter parameters: {kwargs}")
         else:
             print(f"[RobotArm] Warning: Invalid hand type '{hand_type}', use 'left' or 'right'")
+    
 
 # 全局变量，用于存储缩放参数
 positionScale = 1

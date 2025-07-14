@@ -34,8 +34,12 @@ def signal_handler(signum, frame):
         print("[Main] 停止音频流...")
         audio_streamer.running = False
     
-    # 等待所有线程结束
+    # 等待所有线程结束，避免 join 当前线程
+    import threading
+    current = threading.current_thread()
     for thread in threads:
+        if thread is current:
+            continue  # 跳过自己
         if thread.is_alive():
             thread.join(timeout=2)
     

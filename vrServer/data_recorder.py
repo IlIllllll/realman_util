@@ -64,25 +64,27 @@ class DataRecorder:
         with self.lock:
             if self.recording:
                 print("[DataRecorder] 已在录制中")
-                return
+                return False
             print("[DataRecorder] 开始录制数据集")
 
             self.recording = True
             self.thread = threading.Thread(target=self._record_loop, daemon=True)
             self.thread.start()
-
+            return True
+        
     def stop_record(self):
         with self.lock:
             if not self.recording:
                 print("[DataRecorder] 未在录制状态")
-                return
+                return False
             print("[DataRecorder] 停止录制，保存数据集")
             self.recording = False
         if self.thread:
             self.thread.join()
         self.dataset.save_episode(task="dual_arm task", encode_videos=True)
         print("[DataRecorder] 数据集已保存")
-
+        return True
+    
     def is_recording(self):
         with self.lock:
             return self.recording

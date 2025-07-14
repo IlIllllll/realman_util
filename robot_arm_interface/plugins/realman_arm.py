@@ -276,7 +276,7 @@ class RealmanRobotArm(BaseRobotArm):
             for i in range(self.rm_arm_num):
                 joint = joint_positions[i*7:(i+1)*7-1]
                 gripper = joint_positions[(i+1)*7-1]
-                self.robot_list[i].rm_movej_canfd(joint, follow=follow, expand=0, trajectory_mode=2, radio=90)
+                self.robot_list[i].rm_movej_canfd(joint, follow=follow, expand=0, trajectory_mode=0, radio=10)
                 if gripper == 1 and self.robot_config_list[i]["gripper"] != 1:
                     self.robot_config_list[i]["gripper"] = 1
                     self.gripper_control_thread_list[i] = GripperControlThread(self.robot_list[i], 1, 1000, 1000)

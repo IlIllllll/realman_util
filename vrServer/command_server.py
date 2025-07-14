@@ -7,6 +7,21 @@ import sys
 import os
 import threading
 
+import pygame
+
+# 初始化音频模块（只做一次）
+pygame.mixer.init()
+
+# 加载提示音
+start_sound = pygame.mixer.Sound("sounds/action.wav")
+stop_sound = pygame.mixer.Sound("sounds/ka.wav")
+
+def play_audio(status):
+    if status == "start":
+        start_sound.play()
+    elif status == "stop":
+        stop_sound.play()
+
 # 添加项目根目录到路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
@@ -111,18 +126,38 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
                 elif cmd == "start_record":
                     # 启动数据录制线程
                     try:
-                        data_recorder.start_record()
-                        sock.sendto("start_record success".encode("utf-8"), addr)
-                        print(f"[{addr}] start_record")
+                        robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
+                        time.sleep(2)
+                        # 获取当前机械臂状态
+                        current_state = robot_controller.robot_arm.get_state()
+                        left_pose = current_state.end_effector_pose[:7]
+                        right_pose = current_state.end_effector_pose[7:]
+                        
+                        # 设置初始位置
+                        robot_controller.set_initial_pose(left_pose, right_pose)                        
+                        if data_recorder.start_record():
+                            sock.sendto("start_record success".encode("utf-8"), addr)
+                            play_audio("start")
+                            print(f"[{addr}] start_record")
                     except Exception as e:
                         print(f"[DataRecorder] 启动录制失败: {e}")
                         sock.sendto(f"start_record failed: {e}".encode("utf-8"), addr)
                 elif cmd == "stop_record":
                     # 停止数据录制并保存
                     try:
-                        data_recorder.stop_record()
-                        sock.sendto("stop_record success".encode("utf-8"), addr)
-                        print(f"[{addr}] stop_record")
+                        robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
+                        time.sleep(2)
+                        # 获取当前机械臂状态
+                        current_state = robot_controller.robot_arm.get_state()
+                        left_pose = current_state.end_effector_pose[:7]
+                        right_pose = current_state.end_effector_pose[7:]
+                        
+                        # 设置初始位置
+                        robot_controller.set_initial_pose(left_pose, right_pose)                        
+                        if data_recorder.stop_record():
+                            sock.sendto("stop_record success".encode("utf-8"), addr)
+                            play_audio("stop")
+                            print(f"[{addr}] stop_record")
                     except Exception as e:
                         print(f"[DataRecorder] 停止录制失败: {e}")
                         sock.sendto(f"stop_record failed: {e}".encode("utf-8"), addr)
@@ -169,7 +204,6 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
                         
                         # 检查是否是左右臂同时控制
                         elif "left" in data and "right" in data:
-                            print(f"both arms control[{addr}] {data}")
                             left_data = data["left"]
                             right_data = data["right"]
                             left_deltaPose = left_data["deltaPose"]
