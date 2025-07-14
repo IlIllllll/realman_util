@@ -105,6 +105,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
                 data = json.loads(msg)
                 cmd = data.get("cmd")
                 handType = data.get("handType", "")
+
                 if cmd == "connect":
                     sock.sendto("connect success".encode("utf-8"), addr)
                     # 获取当前机械臂状态
@@ -124,43 +125,57 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
                     print(f"[{addr}] {msg}")
 
                 elif cmd == "start_record":
-                    # 启动数据录制线程
-                    try:
-                        robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
-                        time.sleep(2)
-                        # 获取当前机械臂状态
-                        current_state = robot_controller.robot_arm.get_state()
-                        left_pose = current_state.end_effector_pose[:7]
-                        right_pose = current_state.end_effector_pose[7:]
-                        
-                        # 设置初始位置
-                        robot_controller.set_initial_pose(left_pose, right_pose)                        
-                        if data_recorder.start_record():
-                            sock.sendto("start_record success".encode("utf-8"), addr)
-                            play_audio("start")
-                            print(f"[{addr}] start_record")
-                    except Exception as e:
-                        print(f"[DataRecorder] 启动录制失败: {e}")
-                        sock.sendto(f"start_record failed: {e}".encode("utf-8"), addr)
+                    if handType == "right":
+                        # 启动数据录制线程
+                        try:
+                            robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
+                            time.sleep(1)
+                            # 获取当前机械臂状态
+                            current_state = robot_controller.robot_arm.get_state()
+                            left_pose = current_state.end_effector_pose[:7]
+                            right_pose = current_state.end_effector_pose[7:]
+                            
+                            # 设置初始位置
+                            robot_controller.set_initial_pose(left_pose, right_pose)      
+                            sock.sendto("start_record success".encode("utf-8"), addr)                  
+                            if data_recorder.start_record():
+                                play_audio("start")
+                                print(f"[{addr}] start_record")
+                        except Exception as e:
+                            print(f"[DataRecorder] 启动录制失败: {e}")
+                            sock.sendto(f"start_record failed: {e}".encode("utf-8"), addr)
+                    elif handType == "left":
+                        # 删除数据集
+                        sock.sendto("start_record success".encode("utf-8"), addr)
+                        data_recorder.delete_dataset()
+                        play_audio("stop")
+                        print(f"[{addr}] delete_record")
                 elif cmd == "stop_record":
+                    if handType == "right":
                     # 停止数据录制并保存
-                    try:
-                        robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
-                        time.sleep(2)
-                        # 获取当前机械臂状态
-                        current_state = robot_controller.robot_arm.get_state()
-                        left_pose = current_state.end_effector_pose[:7]
-                        right_pose = current_state.end_effector_pose[7:]
-                        
-                        # 设置初始位置
-                        robot_controller.set_initial_pose(left_pose, right_pose)                        
-                        if data_recorder.stop_record():
-                            sock.sendto("stop_record success".encode("utf-8"), addr)
-                            play_audio("stop")
-                            print(f"[{addr}] stop_record")
-                    except Exception as e:
-                        print(f"[DataRecorder] 停止录制失败: {e}")
-                        sock.sendto(f"stop_record failed: {e}".encode("utf-8"), addr)
+                        try:
+                            robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
+                            time.sleep(1)
+                            # 获取当前机械臂状态
+                            current_state = robot_controller.robot_arm.get_state()
+                            left_pose = current_state.end_effector_pose[:7]
+                            right_pose = current_state.end_effector_pose[7:]
+                            
+                            # 设置初始位置
+                            robot_controller.set_initial_pose(left_pose, right_pose)
+                            sock.sendto("stop_record success".encode("utf-8"), addr)                        
+                            if data_recorder.stop_record():
+                                play_audio("stop")
+                                print(f"[{addr}] stop_record")
+                        except Exception as e:
+                            print(f"[DataRecorder] 停止录制失败: {e}")
+                            sock.sendto(f"stop_record failed: {e}".encode("utf-8"), addr)
+                    elif handType == "left":
+                        # 删除数据集
+                        sock.sendto("stop_record success".encode("utf-8"), addr)
+                        data_recorder.delete_dataset()
+                        play_audio("stop")
+                        print(f"[{addr}] delete_record")
                 elif cmd == "filter_stats":
                     # 获取滤波器统计信息
                     stats = robot_controller.get_filter_stats()

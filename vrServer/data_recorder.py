@@ -82,12 +82,18 @@ class DataRecorder:
         if self.thread:
             self.thread.join()
         self.dataset.save_episode(task="dual_arm task", encode_videos=True)
-        print("[DataRecorder] 数据集已保存")
+        print(f"[DataRecorder] 数据集{self.dataset.episode_data_index}已保存")
         return True
     
     def is_recording(self):
         with self.lock:
             return self.recording
+        
+    def delete_dataset(self):
+        with self.lock:
+            self.recording = False
+        self.dataset.clear_episode_buffer()
+        return True
 
     def _record_loop(self):
         interval = 1.0 / self.fps

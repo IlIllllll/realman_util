@@ -139,7 +139,7 @@ class RobotArmController:
             if left_delta_pose is not None:
                 xyzDelta_left = np.array([-left_delta_pose[1], -left_delta_pose[2], -left_delta_pose[0]]) * positionScale
                 rpy_left = apply_rotation_delta("left", self.init_pose["left"][3:6], left_delta_pose[3:7], rotationScale)
-                xyz_left = self.init_pose["left"][:3] + xyzDelta_left * positionScale
+                xyz_left = self.init_pose["left"][:3] + xyzDelta_left
                 left_new_pose = np.concatenate([xyz_left, rpy_left, [left_grip]])
             
             # 计算右臂新位置
@@ -147,7 +147,7 @@ class RobotArmController:
             if right_delta_pose is not None:
                 xyzDelta_right = np.array([right_delta_pose[1], -right_delta_pose[2], right_delta_pose[0]]) * positionScale
                 rpy_right = apply_rotation_delta("right", self.init_pose["right"][3:6], right_delta_pose[3:7], rotationScale)
-                xyz_right = self.init_pose["right"][:3] + xyzDelta_right * positionScale
+                xyz_right = self.init_pose["right"][:3] + xyzDelta_right
                 right_new_pose = np.concatenate([xyz_right, rpy_right, [right_grip]])
             
             # 构建完整的目标位置
@@ -265,7 +265,7 @@ class RobotArmController:
     
 
 # 全局变量，用于存储缩放参数
-positionScale = 1
+positionScale = 1.2
 rotationScale = 1
 
 def set_scale_parameters(pos_scale=1, rot_scale=1):
