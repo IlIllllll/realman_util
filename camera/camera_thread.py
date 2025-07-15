@@ -45,11 +45,14 @@ class RealsenseCamera:
         pipeline.stop()
 
     def start(self):
+        print("相机启动中...")
         self.running = True
         for name, serial in self.name_serial_map.items():
+            print(f"正在启动相机: {name}, 序列号: {serial}")
             t = threading.Thread(target=self._camera_thread, args=(name, serial), daemon=True)
             self.threads[name] = t
             t.start()
+        print("所有相机启动线程已创建")
 
     def get_frame(self):
         with self.lock:

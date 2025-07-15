@@ -71,8 +71,6 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
             return
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # 添加SO_REUSEADDR选项，允许端口重用
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
     try:
         sock.bind((ip, port))
@@ -137,7 +135,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
                             
                             # 设置初始位置
                             robot_controller.set_initial_pose(left_pose, right_pose)      
-                            sock.sendto("start_record success".encode("utf-8"), addr)                  
+                            sock.sendto("start_record success".encode("utf-8"), addr)               
                             if data_recorder.start_record():
                                 play_audio("start")
                                 print(f"[{addr}] start_record")

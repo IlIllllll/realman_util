@@ -59,6 +59,7 @@ class DataRecorder:
                 image_writer_threads=4,
                 image_writer_processes=4,
             )
+        print(f"[DataRecorder] 数据集{self.repo_id}已创建")
 
     def start_record(self):
         with self.lock:
