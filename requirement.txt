@@ -10,3 +10,4 @@ cd lerobot && pip install -e .
 pip install av
 pip install opuslib
 pip install sounddevice
+pip install PyQt5
