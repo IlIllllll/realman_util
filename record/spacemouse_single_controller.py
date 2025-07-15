@@ -80,7 +80,7 @@ if __name__ == "__main__":
     REPO_NAME = "single_arm/test_dp"
     output_path = LEROBOT_HOME / REPO_NAME
     if output_path.exists():
-        dataset = LeRobotDataset( root=REPO_NAME,local_files_only=True)
+        dataset = LeRobotDataset( repo_id=REPO_NAME,local_files_only=True)
     else:
         dataset = LeRobotDataset.create(
             repo_id=REPO_NAME,
@@ -177,7 +177,7 @@ if __name__ == "__main__":
                         "top_image": top_image,
                         "wrist_image": wrist_image,
                         "state": np.array(pose, dtype=np.float32),
-                        "actions": np.array(pose, dtype=np.float32),
+                        "actions": np.array(joint, dtype=np.float32),
                         "joint": np.array(joint, dtype=np.float32),
                     })
                 else:
