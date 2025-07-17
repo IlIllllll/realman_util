@@ -69,16 +69,14 @@ def main():
     
     global robot_controller, audio_streamer
     try:
-        # if "video" in args.mode:
-        #     from video_streamer import video_stream_thread
-        #     t1 = threading.Thread(target=video_stream_thread, kwargs={"device_serials": device_serials})
-        #     t1.daemon = True
-        #     t1.start()
-        #     threads.append(t1)
-
         if "command" in args.mode:
+            if "video" in args.mode:
+                streaming = True
+            else:
+                streaming = False
             t2 = threading.Thread(target=command_server_thread, kwargs={
-                "repo_id": args.repo_id
+                "repo_id": args.repo_id,
+                "streaming": streaming
             })
             t2.daemon = True
             t2.start()

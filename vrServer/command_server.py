@@ -34,7 +34,7 @@ from camera.camera_thread import RealsenseCamera
 # 全局变量
 robot_controller = None
 
-def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
+def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", streaming=False):
     """
     控制命令服务器线程
     
@@ -93,7 +93,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp"):
     camera.start()
 
     # 创建数据采集器
-    data_recorder = DataRecorder(robot_controller, camera, repo_id)
+    data_recorder = DataRecorder(robot_controller, camera, repo_id, streaming=streaming)
     
     try:
         while True:

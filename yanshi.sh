@@ -2,6 +2,6 @@
 #     --ip 17.16.2.206 \
 #     --modes command
 python vrServer/main.py \
-    --mode command \
+    --mode command video\
     --ip 17.16.2.88  \
-    --repo_id dual_arm/test_dp
+    --repo_id dual_arm/test
