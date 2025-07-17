@@ -72,16 +72,19 @@ class LatencyTester:
     def create_test_observation(self) -> Dict[str, Any]:
         """创建测试用的观察数据"""
         # 创建模拟的图像数据 (224x224 RGB图像)
-        mock_image = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
-        mock_wrist_image = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+        mock_image = np.random.randint(0, 255, (3, 224, 224), dtype=np.uint8)
+        mock_wrist_image = np.random.randint(0, 255, (3, 224, 224), dtype=np.uint8)
         
         # 创建模拟的机械臂状态 (7维向量: x, y, z, rx, ry, rz, gripper)
-        mock_state = np.array([0.5, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+        mock_state = np.array([0.5, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0,0.5, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
         
         observation = {
-            "observation/image": mock_image,
-            "observation/wrist_image": mock_wrist_image,
-            "observation/state": mock_state,
+            "images": {
+                "cam_high": mock_image,
+                "cam_left_wrist": mock_wrist_image,
+                "cam_right_wrist": mock_wrist_image,
+            },
+            "state": mock_state,
             "prompt": "pick up the blue cube",
         }
         return observation
@@ -169,7 +172,7 @@ class LatencyTester:
 async def main():
     """主函数"""
     # 使用与原始脚本相同的服务器地址
-    uri = "wss://sv-fd9e865a-29de-4be8-8291-3bca742f241f-8000-x-defau-811fd93b30.sproxy.hd-01.alayanew.com:22443/"
+    uri = "wss://sv-6360e381-0998-4746-ac37-229543e01243-8000-x-defau-da2d73a9c8.sproxy.hd-01.alayanew.com:22443/"
     
     # 创建测试器
     tester = LatencyTester(uri)
