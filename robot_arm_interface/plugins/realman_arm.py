@@ -402,7 +402,7 @@ class RealmanRobotArm(BaseRobotArm):
                     joint_positions[i*7:(i+1)*7-1] = result.q_solve[ret][:6]
                 else:
                     print(f"no best solution for arm {i}!")
-                    joint_positions[i*7:(i+1)*7-1] = result.q_solve[0]
+                    joint_positions[i*7:(i+1)*7-1] = self.robot_config_list[i]["cur_pos"][:6]
                     has_optimal_solution = False
                 joint_positions[(i+1)*7-1] = gripper
             return joint_positions, has_optimal_solution

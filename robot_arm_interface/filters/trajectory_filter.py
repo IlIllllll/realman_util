@@ -250,3 +250,20 @@ class AdaptiveTrajectoryFilter(TrajectoryFilter):
                                    (1 - adaptive_alpha) * self._filtered_positions)
         
         return self._filtered_positions.copy()
+
+
+def create_filter(filter_type: str, **kwargs):
+    """
+    根据类型创建滤波器实例。
+    filter_type: 'trajectory', 'adaptive', 'kalman'
+    其余参数传递给具体滤波器构造函数。
+    """
+    if filter_type == 'trajectory':
+        return TrajectoryFilter(**kwargs)
+    elif filter_type == 'adaptive':
+        return AdaptiveTrajectoryFilter(**kwargs)
+    elif filter_type == 'kalman':
+        from .kalman_filter import KalmanPoseFilter
+        return KalmanPoseFilter(**kwargs)
+    else:
+        raise ValueError(f"Unknown filter type: {filter_type}")
