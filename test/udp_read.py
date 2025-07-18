@@ -52,7 +52,7 @@ try:
         data, addr = sock.recvfrom(65535)
         try:
             msg = data.decode("utf-8")
-            # print(msg)
+            print(msg)
             # 尝试解析pose数据
             d = json.loads(msg)
             # 计算right的pose
