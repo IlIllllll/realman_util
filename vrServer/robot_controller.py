@@ -161,11 +161,11 @@ class RobotArmController:
                 full_target_pose[7:] = right_new_pose
             else:
                 full_target_pose[7:] = self.init_pose["right"]
-            print("************************************************")
-            print(f"[RobotArm] full_target_pose: {full_target_pose}")
-            print(f"[RobotArm] self.init_pose['left']: {self.init_pose['left']}")
-            print(f"[RobotArm] self.init_pose['right']: {self.init_pose['right']}")
-            print(f"[RobotArm] current_pose: {self.robot_arm.get_state().end_effector_pose}")
+            # print("************************************************")
+            # print(f"[RobotArm] full_target_pose: {full_target_pose}")
+            # print(f"[RobotArm] self.init_pose['left']: {self.init_pose['left']}")
+            # print(f"[RobotArm] self.init_pose['right']: {self.init_pose['right']}")
+            # print(f"[RobotArm] current_pose: {self.robot_arm.get_state().end_effector_pose}")
             
             # 清空动作队列
             self.motion_queue.clear()

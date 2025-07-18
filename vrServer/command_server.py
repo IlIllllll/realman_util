@@ -58,7 +58,12 @@ pose_update_enabled = {
 }
 
 # 记录上一次的位姿用于计算增量
-last_poses = {
+last_vr_poses = {
+    "left": None,
+    "right": None
+}
+
+current_vr_poses = {
     "left": None,
     "right": None
 }
@@ -71,7 +76,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
         ip: 监听IP地址
         port: 监听端口
     """
-    global robot_controller, button_states, pose_update_enabled, last_poses
+    global robot_controller, button_states, pose_update_enabled, last_vr_poses, current_vr_poses
     
     # 检查端口是否被占用
     def is_port_in_use(port):
@@ -116,17 +121,22 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
     # 创建机械臂控制器
     robot_controller = RobotArmController(arm_config, filter_config)
     robot_controller.start()
+
+    current_state = robot_controller.robot_arm.get_state()
+    left_pose = current_state.end_effector_pose[:7]
+    right_pose = current_state.end_effector_pose[7:]
+    robot_controller.set_initial_pose(left_pose, right_pose)
     
     # 初始化相机
     camera = RealsenseCamera()
     camera.start()
 
     # 创建数据采集器
-    data_recorder = DataRecorder(robot_controller, camera, repo_id, streaming=streaming)
+    lerobot_recorder = DataRecorder(robot_controller, camera, repo_id, streaming=streaming)
     
-    def handle_button_press(hand_type, button_name, is_pressed):
+    def handle_button_press(hand_type, button_name, is_pressed, lerobot_recorder):
         """处理按钮按下事件"""
-        global button_states, pose_update_enabled, data_recorder
+        global button_states, pose_update_enabled
         
         # 更新按钮状态
         button_states[hand_type][button_name] = is_pressed
@@ -138,9 +148,15 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                 pose_update_enabled[hand_type] = not pose_update_enabled[hand_type]
                 status = "enabled" if pose_update_enabled[hand_type] else "disabled"
                 current_state = robot_controller.robot_arm.get_state()
-                left_pose = current_state.end_effector_pose[:7]
-                right_pose = current_state.end_effector_pose[7:]
-                
+                # 根据手型分别只更新对应手的初始位置
+                if hand_type == "left":
+                    left_pose = current_state.end_effector_pose[:7]
+                    right_pose = robot_controller.init_pose["right"]
+                    last_vr_poses["left"] = current_vr_poses["left"].copy()
+                elif hand_type == "right":
+                    left_pose = robot_controller.init_pose["left"]
+                    right_pose = current_state.end_effector_pose[7:]
+                    last_vr_poses["right"] = current_vr_poses["right"].copy()
                 # 设置初始位置
                 robot_controller.set_initial_pose(left_pose, right_pose)
                 print(f"[Control] {hand_type} hand pose update {status}")
@@ -149,7 +165,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                 if hand_type == "left":
                     # 左手secondaryDown：删除数据
                     try:
-                        data_recorder.delete_dataset()
+                        lerobot_recorder.delete_dataset()
                         play_audio("stop")
                         print(f"[Control] {hand_type} hand: dataset deleted")
                     except Exception as e:
@@ -157,7 +173,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                         
                 elif hand_type == "right":
                     # 右手secondaryDown：开始或结束录制
-                    if data_recorder.is_recording():
+                    if lerobot_recorder.is_recording():
                         # 停止录制
                         try:
                             robot_controller.move_to_joints(np.array([-83,-11,-66,4,-99,6,0,90,-3,82,-5,88,-1.8,0]))
@@ -169,7 +185,9 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                             
                             # 设置初始位置
                             robot_controller.set_initial_pose(left_pose, right_pose)
-                            if data_recorder.stop_record():
+                            last_vr_poses["left"] = current_vr_poses["left"].copy()
+                            last_vr_poses["right"] = current_vr_poses["right"].copy()
+                            if lerobot_recorder.stop_record():
                                 play_audio("stop")
                                 print(f"[Control] {hand_type} hand: recording stopped")
                         except Exception as e:
@@ -186,37 +204,40 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                             
                             # 设置初始位置
                             robot_controller.set_initial_pose(left_pose, right_pose)
-                            if data_recorder.start_record():
+                            last_vr_poses["left"] = current_vr_poses["left"].copy()
+                            last_vr_poses["right"] = current_vr_poses["right"].copy()
+                            if lerobot_recorder.start_record():
                                 play_audio("start")
                                 print(f"[Control] {hand_type} hand: recording started")
                         except Exception as e:
                             print(f"[DataRecorder] 启动录制失败: {e}")
     
-    def process_pose_data(data):
+    def process_pose_data(data,lerobot_recorder):
         """处理位姿数据"""
-        global last_poses, pose_update_enabled
+        global last_vr_poses, pose_update_enabled, current_vr_poses
         
         left_delta_pose = None
         right_delta_pose = None
         left_grip = 0.0
         right_grip = 0.0
+
+        button_changed = False
         
         # 处理左手数据
         if "left" in data:
             left_data = data["left"]
-            current_left_pose = left_data["pose"]
-            
+            current_vr_poses["left"] = left_data["pose"]
             # 检查位姿更新是否启用
             if pose_update_enabled["left"]:
-                if last_poses["left"] is not None:
+                if last_vr_poses["left"] is not None:
                     # 计算增量位姿
-                    left_delta_pose = calculate_delta_pose(last_poses["left"], current_left_pose)
+                    left_delta_pose = calculate_delta_pose(last_vr_poses["left"], current_vr_poses["left"])
                 else:
                     # 第一次接收到数据，设置为零增量
                     left_delta_pose = np.zeros(7)
             else:
                 # 更新最后位姿
-                last_poses["left"] = current_left_pose.copy()
+                last_vr_poses["left"] = current_vr_poses["left"].copy()
             
             # 处理夹爪
             left_grip = 1.0 if left_data.get("gripDown", False) else 0.0
@@ -225,24 +246,24 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
             for button_name in ["primaryDown", "secondaryDown", "axisClickDown"]:
                 current_state = left_data.get(button_name, False)
                 if current_state != button_states["left"][button_name]:
-                    handle_button_press("left", button_name, current_state)
-        
+                    handle_button_press("left", button_name, current_state, lerobot_recorder)
+                    button_changed = True
         # 处理右手数据
         if "right" in data:
             right_data = data["right"]
-            current_right_pose = right_data["pose"]
+            current_vr_poses["right"] = right_data["pose"]
             
             # 检查位姿更新是否启用
             if pose_update_enabled["right"]:
-                if last_poses["right"] is not None:
+                if last_vr_poses["right"] is not None:
                     # 计算增量位姿
-                    right_delta_pose = calculate_delta_pose(last_poses["right"], current_right_pose)
+                    right_delta_pose = calculate_delta_pose(last_vr_poses["right"], current_vr_poses["right"])
                 else:
                     # 第一次接收到数据，设置为零增量
                     right_delta_pose = np.zeros(7)
             else:
                 # 更新最后位姿
-                last_poses["right"] = current_right_pose.copy()
+                last_vr_poses["right"] = current_vr_poses["right"].copy()
             
             # 处理夹爪
             right_grip = 1.0 if right_data.get("gripDown", False) else 0.0
@@ -251,10 +272,14 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
             for button_name in ["primaryDown", "secondaryDown", "axisClickDown"]:
                 current_state = right_data.get(button_name, False)
                 if current_state != button_states["right"][button_name]:
-                    handle_button_press("right", button_name, current_state)
+                    handle_button_press("right", button_name, current_state, lerobot_recorder)
+                    button_changed = True
         
         # 更新机械臂位姿
         if left_delta_pose is not None or right_delta_pose is not None:
+            if button_changed:
+                print(f"[Control] button_changed: {button_changed}")
+                return
             print(f"[Control] left_delta_pose: {left_delta_pose}, right_delta_pose: {right_delta_pose}")
             robot_controller.update_both_arms_pose(
                 left_delta_pose=left_delta_pose,
@@ -272,7 +297,7 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
                 
                 # 处理新的通信协议格式
                 if "left" in data or "right" in data:
-                    process_pose_data(data)
+                    process_pose_data(data,lerobot_recorder)
                 else:
                     print(f"[Control] Received unknown message format: {data}")
                         
@@ -288,8 +313,8 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
             camera.stop()
         # 停止数据录制线程（如果还在录制）
         try:
-            if data_recorder and data_recorder.is_recording():
-                data_recorder.stop_record()
+            if lerobot_recorder and lerobot_recorder.is_recording():
+                lerobot_recorder.stop_record()
         except Exception as e:
             print(f"[DataRecorder] 关闭录制线程异常: {e}")
         sock.close() 
