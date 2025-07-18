@@ -65,12 +65,12 @@ def get_filter_config():
     """
     return {
         "left_filter_config": {
-            "window_size": 3,
+            "window_size": 1,
             "filter_type": "moving_average",
             "alpha": 0.3
         },
         "right_filter_config": {
-            "window_size": 3,
+            "window_size": 1,
             "filter_type": "moving_average", 
             "alpha": 0.3
         }

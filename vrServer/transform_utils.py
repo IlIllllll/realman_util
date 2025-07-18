@@ -29,6 +29,37 @@ def map_unity_quat_to_robot(unity_quat):
     quat_xyzw = r_robot.as_quat()
     return quat_xyzw
 
+def calculate_delta_pose(current_pose, target_pose):
+    """
+    计算从当前位姿到目标位姿的增量
+    
+    Args:
+        current_pose: 当前位姿 [x, y, z, qx, qy, qz, qw]
+        target_pose: 目标位姿 [x, y, z, qx, qy, qz, qw]
+        
+    Returns:
+        delta_pose: 位姿增量 [dx, dy, dz, dqx, dqy, dqz, dqw]
+    """
+    # 位置增量
+    position_delta = np.array(target_pose[:3]) - np.array(current_pose[:3])
+    
+    # 四元数增量
+    current_quat = np.array(current_pose[3:7])
+    target_quat = np.array(target_pose[3:7])
+    
+    # 计算四元数差值
+    current_rot = R.from_quat(current_quat)
+    target_rot = R.from_quat(target_quat)
+    
+    # 计算相对旋转
+    delta_rot = target_rot * current_rot.inv()
+    delta_quat = delta_rot.as_quat()
+    
+    # 组合增量
+    delta_pose = np.concatenate([position_delta, delta_quat])
+    
+    return delta_pose
+
 def apply_rotation_delta(handType, init_euler_deg, delta_quat_unity, rotation_scale=1.0):
     """
     应用旋转增量到初始欧拉角

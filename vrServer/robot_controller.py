@@ -155,18 +155,17 @@ class RobotArmController:
             if left_new_pose is not None:
                 full_target_pose[:7] = left_new_pose
             else:
-                if self.last_pose["left"] is not None:
-                    full_target_pose[:7] = self.last_pose["left"]
-                else:
-                    full_target_pose[:7] = self.init_pose["left"]  # 或 np.zeros(7)
+                full_target_pose[:7] = self.init_pose["left"]
 
             if right_new_pose is not None:
                 full_target_pose[7:] = right_new_pose
             else:
-                if self.last_pose["right"] is not None:
-                    full_target_pose[7:] = self.last_pose["right"]
-                else:
-                    full_target_pose[7:] = self.init_pose["right"]  # 或 np.zeros(7)
+                full_target_pose[7:] = self.init_pose["right"]
+            print("************************************************")
+            print(f"[RobotArm] full_target_pose: {full_target_pose}")
+            print(f"[RobotArm] self.init_pose['left']: {self.init_pose['left']}")
+            print(f"[RobotArm] self.init_pose['right']: {self.init_pose['right']}")
+            print(f"[RobotArm] current_pose: {self.robot_arm.get_state().end_effector_pose}")
             
             # 清空动作队列
             self.motion_queue.clear()
