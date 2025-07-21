@@ -280,7 +280,6 @@ def command_server_thread(ip="0.0.0.0", port=5005, repo_id="dual_arm/test_dp", s
             if button_changed:
                 print(f"[Control] button_changed: {button_changed}")
                 return
-            print(f"[Control] left_delta_pose: {left_delta_pose}, right_delta_pose: {right_delta_pose}")
             robot_controller.update_both_arms_pose(
                 left_delta_pose=left_delta_pose,
                 right_delta_pose=right_delta_pose,

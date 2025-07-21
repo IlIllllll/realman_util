@@ -19,6 +19,7 @@ class DataRecorder:
         self.streaming = streaming
         self.thread = None
         self.lock = threading.Lock()
+        self.add_frame_lock = threading.Lock()  # 专门保护add_frame操作的锁
         self.LEROBOT_HOME = Path(os.getenv("LEROBOT_HOME", "/home/ls/lerobot_dataset")).expanduser()
         self.output_path = self.LEROBOT_HOME / repo_id
         self.stream_ip = stream_ip
@@ -86,10 +87,14 @@ class DataRecorder:
             if not self.recording:
                 print(f"[DataRecorder] 未在录制状态")
                 return False
-            print(f"[DataRecorder] 停止录制，保存数据集")
+            print(f"[DataRecorder] 停止录制，等待当前帧处理完成...")
             self.recording = False
-        self.dataset.save_episode(task="dual_arm task", encode_videos=True)
-        print(f"[DataRecorder] 数据集{self.dataset.episode_data_index}已保存")
+        
+        # 等待当前正在进行的add_frame操作完成
+        with self.add_frame_lock:
+            print(f"[DataRecorder] 当前帧处理完成，开始保存数据集")
+            self.dataset.save_episode(task="dual_arm task", encode_videos=True)
+            print(f"[DataRecorder] 数据集{self.dataset.episode_data_index}已保存")
         return True
 
     def is_recording(self):
@@ -98,8 +103,17 @@ class DataRecorder:
 
     def delete_dataset(self):
         with self.lock:
+            if not self.recording:
+                print(f"[DataRecorder] 未在录制状态，无需删除")
+                return False
+            print(f"[DataRecorder] 删除数据集，等待当前帧处理完成...")
             self.recording = False
-        self.dataset.clear_episode_buffer()
+        
+        # 等待当前正在进行的add_frame操作完成
+        with self.add_frame_lock:
+            print(f"[DataRecorder] 当前帧处理完成，开始删除数据集")
+            self.dataset.clear_episode_buffer()
+            print(f"[DataRecorder] 数据集已删除")
         return True
 
     def __del__(self):
@@ -142,14 +156,18 @@ class DataRecorder:
             # 只在录制时add_frame
             if is_recording:
                 if top_image is not None and right_image is not None and left_image is not None:
-                    self.dataset.add_frame({
-                        "top_image": top_image,
-                        "right_image": right_image,
-                        "left_image": left_image,
-                        "state": pose,
-                        "actions": joint,
-                        "joint": joint,
-                    })
+                    # 使用add_frame_lock保护add_frame操作
+                    with self.add_frame_lock:
+                        # 再次检查录制状态，防止在等待锁的过程中录制被停止
+                        if self.recording:
+                            self.dataset.add_frame({
+                                "top_image": top_image,
+                                "right_image": right_image,
+                                "left_image": left_image,
+                                "state": pose,
+                                "actions": joint,
+                                "joint": joint,
+                            })
                 else:
                     print(f"[DataRecorder] 相机未准备好，跳过当前帧")
             # 推流（和采集同步）
